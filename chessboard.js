@@ -294,11 +294,11 @@ Chessboard.prototype.dropPiece = function (redraw = true) {
 
 Chessboard.prototype.setLastMoveHighlights = function(from, to) {
     if(this.lastMovedFrom !== undefined) {
-        this.clearSquare(this.boardCtx, this.lastMovedFrom);
+        this.colorBoardSquare(this.lastMovedFrom, getNormalColor(this.lastMovedFrom));
     }
 
     if(this.lastMovedTo !== undefined) {
-        this.clearSquare(this.boardCtx, this.lastMovedTo);
+        this.colorBoardSquare(this.lastMovedTo, getNormalColor(this.lastMovedTo));
     }
 
     this.colorBoardSquare(from, getMoveColor(from));
