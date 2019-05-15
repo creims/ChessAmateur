@@ -1,0 +1,5 @@
+#!/bin/bash
+emcc -o module.js -s WASM=1 --bind \
+-std=gnu++14 -s DISABLE_EXCEPTION_CATCHING=0 \
+-s EXPORT_ES6=1 -s MODULARIZE_INSTANCE=1 -s EXPORT_NAME="'ChessAmateur'" \
+web.cpp src/Error.cpp src/Game.cpp src/GameState.cpp src/Move.cpp src/logistics.cpp

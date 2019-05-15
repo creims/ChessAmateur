@@ -1,0 +1,156 @@
+html, body {
+    margin: 0;
+    padding: 0;
+}
+
+#display {
+    width: 100vw;
+    height: 100vh;
+    max-width: 100%;
+    max-height: 100%;
+    grid-gap: 5px;
+    display: grid;
+    justify-content: center;
+}
+
+@media only screen and (orientation: landscape) {
+    #display {
+        grid-template-columns: minmax(60vmin, 100vmin) minmax(200px, 1fr);
+        grid-template-rows: 1fr 1fr 2fr;
+        grid-template-areas:
+                'board ngwhite'
+                'board ngblack'
+                'board moves'
+                'board moves';
+    }
+}
+
+@media only screen and (orientation: portrait) {
+    #display {
+        grid-template-columns: 2fr 3fr;
+        grid-template-rows: minmax(60vmin, 100vmin)  repeat(2, minmax(100px, 1fr));
+        grid-template-areas:
+                'board board'
+                'ngwhite moves'
+                'ngblack moves';
+    }
+}
+
+#newgame-white {
+    grid-area: ngwhite;
+}
+
+#newgame-black {
+    grid-area: ngblack;
+}
+
+
+button {
+    font-size: calc(1em + 2vmin);
+}
+
+#board {
+    grid-area: board;
+    position: relative;
+    display: grid;
+    grid-template-areas: 'all';
+
+    justify-items: center;
+    align-items: center;
+}
+
+#board > * {
+    grid-area: all;
+}
+
+.chess-dialog {
+    visibility: hidden;
+    background: rgba(240, 248, 255, 0.55);
+    border: 3px solid rgba(139, 69, 19, 0.55);
+    border-radius: 5px;
+
+    display: grid;
+    justify-items: center;
+    align-items: center;
+
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+.chess-dialog > img {
+    max-width: 95%;
+}
+
+.gameover-dialog > span {
+    text-align: justify;
+    font-size: calc(1em + 2vmin);
+    font-family: Helvetica, serif;
+    font-weight: bolder;
+    color: blue;
+}
+
+.gameover-dialog {
+    top: 25%;
+    left: 25%;
+    width: 50%;
+    height: 50%;
+}
+
+.victory-dialog > img {
+    width: 50%;
+    height: auto;
+}
+
+.stalemate-dialog {
+    grid-template-columns: 1fr 1fr;
+}
+
+.stalemate-dialog > span {
+    grid-column: 1 / 3;
+}
+
+.stalemate-dialog > img {
+    width: 80%;
+    height: auto;
+}
+
+.promotion-dialog {
+    position: absolute;
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(4, 1fr);
+    width: 13%;
+    height: 52%;
+    justify-items: center;
+    align-items: center;
+    z-index: 3;
+}
+
+.promotion-dialog > img {
+    width: 100%;
+    height: auto;
+}
+
+.piece-btn:hover {
+    background: yellow;
+}
+
+#moves {
+    display: block;
+    overflow-y: scroll;
+    grid-area: moves;
+    margin-right: 3px;
+    border: 2px solid darkolivegreen;
+    border-radius: 5px;
+    background: aliceblue;
+}
+
+#moves > span {
+    float: left;
+    font-size: 1rem;
+    min-width: 20ch;
+    max-width: 20vw;
+    padding: 2px;
+}
