@@ -100,54 +100,90 @@ function Chessboard(parentElement, engine) {
         e.preventDefault();
     };
 
-    let handleDown = (e) => {
-        if (!this.holdingPiece) {
-            if (e.type === 'touchstart') e = e.targetTouches[0];
-            this.updateUserCoords(e.clientX, e.clientY);
-            this.pickUpPiece();
+    const registerInputType = (e) => {
+        this.boardInterface.removeEventListener('mousedown', registerInputType);
+        this.boardInterface.removeEventListener('touchstart', registerInputType);
+
+        if(e.type === 'touchstart') {
+            this.setInputType(e, 'touch');
+        } else {
+            this.setInputType(e, 'mouse');
         }
     };
 
-    let handleUp = (e) => {
-        if (this.holdingPiece) {
-            if (e.type === 'touchend') e = e.targetTouches[0];
-            if (document.elementFromPoint(e.clientX, e.clientY) !== this.boardInterface) {
-                this.dropPiece();
-            } else {
-                this.updateUserCoords(e.clientX, e.clientY);
-                this.movePiece();
-            }
-        }
-    };
-
-    let handleMove = (e) => {
-        if (this.holdingPiece) {
-            if (e.type === 'touchmove') e = e.targetTouches[0];
-            this.updateUserCoords(e.clientX, e.clientY);
-            this.drawOverlay();
-        }
-    };
-
-    let handleLeave = () => {
-        if (this.holdingPiece) {
-            this.dropPiece();
-        }
-    };
-
-    this.boardInterface.addEventListener('mousedown', handleDown);
-    this.boardInterface.addEventListener('mouseup', handleUp);
-    this.boardInterface.addEventListener('mousemove', handleMove);
-    this.boardInterface.addEventListener('mouseleave', handleLeave);
-
-    this.boardInterface.addEventListener('touchstart', handleDown);
-    this.boardInterface.addEventListener('touchend', handleUp);
-    this.boardInterface.addEventListener('touchmove', handleMove);
+    this.boardInterface.addEventListener('mousedown', registerInputType, false);
+    this.boardInterface.addEventListener('touchstart', registerInputType, false);
 
     // This is the "per game" state
     this.holdingPiece = false;
     this.pieceString = this.engineAPI.getPieces();
     this.resize();
 }
+
+// Gets called once to initialize input type (touch or mouse)
+Chessboard.prototype.setInputType = function (event, type) {
+    // Register touch controls
+    if (type === 'touch') {
+        let handleTouch = (e) => {
+            e.preventDefault();
+            e = e.targetTouches[0];
+            this.updateUserCoords(e.clientX, e.clientY);
+            if (this.holdingPiece) {
+                this.movePiece();
+            } else {
+                this.pickUpPiece(true);
+            }
+        };
+
+        this.boardInterface.addEventListener('touchstart', handleTouch, false);
+
+        this.dialogs.blackPromo.registerButtonListener('touchstart');
+        this.dialogs.whitePromo.registerButtonListener('touchstart');
+
+        handleTouch(event);
+    } else { // Register mouse controls
+        let handleDown = (e) => {
+            if (!this.holdingPiece) {
+                this.updateUserCoords(e.clientX, e.clientY);
+                this.pickUpPiece();
+            }
+        };
+
+        let handleUp = (e) => {
+            if (this.holdingPiece) {
+                if (document.elementFromPoint(e.clientX, e.clientY) !== this.boardInterface) {
+                    this.dropPiece();
+                } else {
+                    this.updateUserCoords(e.clientX, e.clientY);
+                    this.movePiece();
+                }
+            }
+        };
+
+        let handleMove = (e) => {
+            if (this.holdingPiece) {
+                this.updateUserCoords(e.clientX, e.clientY);
+                this.drawOverlay();
+            }
+        };
+
+        let handleLeave = () => {
+            if (this.holdingPiece) {
+                this.dropPiece();
+            }
+        };
+
+        this.boardInterface.addEventListener('mousedown', handleDown, false);
+        this.boardInterface.addEventListener('mouseup', handleUp, false);
+        this.boardInterface.addEventListener('mousemove', handleMove, false);
+        this.boardInterface.addEventListener('mouseleave', handleLeave, false);
+
+        this.dialogs.blackPromo.registerButtonListener('click');
+        this.dialogs.whitePromo.registerButtonListener('click');
+
+        handleDown(event);
+    }
+};
 
 Chessboard.prototype.reverseIfNeeded = function (square) {
     return this.reverseBoard ? 63 - square : square;
@@ -213,7 +249,6 @@ Chessboard.prototype.colorBoardSquare = function (square, color) {
 };
 
 Chessboard.prototype.drawBoard = function () {
-    let color;
     for (let square = 0; square < 64; square++) {
         this.colorBoardSquare(square, getNormalColor(square));
     }
@@ -227,13 +262,13 @@ Chessboard.prototype.clearSquare = function (context, square) {
 };
 
 Chessboard.prototype.drawPiece = function (square, img = undefined) {
-    if(img === undefined) {
-       const pieceChar = this.pieceString[square];
-       if (pieceChar !== '.') {
-           img = svgs[Pieces[pieceChar]];
-       } else {
+    if (img === undefined) {
+        const pieceChar = this.pieceString[square];
+        if (pieceChar !== '.') {
+            img = svgs[Pieces[pieceChar]];
+        } else {
             return;
-       }
+        }
     }
 
     let startX = this.getSquareXCoord(square);
@@ -268,16 +303,20 @@ Chessboard.prototype.updatePieces = function (forceAll = false) {
     }
 };
 
-Chessboard.prototype.pickUpPiece = function () {
+Chessboard.prototype.pickUpPiece = function (isTouch = false) {
     let square = this.squareFromCoords(this.userX, this.userY);
     if (!this.holdingPiece && this.engineAPI.canMove(this.reverseIfNeeded(square))) {
         this.holdingPiece = true;
         this.heldPieceSquare = square;
         this.heldPieceSVG = svgs[Pieces[this.pieceString[square]]];
 
-        this.boardInterface.style.cursor = "none";
-        this.clearSquare(this.piecesCtx, square);
-        this.drawOverlay();
+        if (isTouch) {
+            this.updateHoverHighlighting(square);
+        } else {
+            this.drawOverlay();
+            this.boardInterface.style.cursor = "none";
+            this.clearSquare(this.piecesCtx, square);
+        }
     }
 };
 
@@ -292,12 +331,12 @@ Chessboard.prototype.dropPiece = function (redraw = true) {
     }
 };
 
-Chessboard.prototype.setLastMoveHighlights = function(from, to) {
-    if(this.lastMovedFrom !== undefined) {
+Chessboard.prototype.setLastMoveHighlights = function (from, to) {
+    if (this.lastMovedFrom !== undefined) {
         this.colorBoardSquare(this.lastMovedFrom, getNormalColor(this.lastMovedFrom));
     }
 
-    if(this.lastMovedTo !== undefined) {
+    if (this.lastMovedTo !== undefined) {
         this.colorBoardSquare(this.lastMovedTo, getNormalColor(this.lastMovedTo));
     }
 
@@ -308,17 +347,17 @@ Chessboard.prototype.setLastMoveHighlights = function(from, to) {
     this.lastMovedTo = to;
 };
 
-Chessboard.prototype.updateHoverHighlighting = function(newHoverSquare = undefined) {
-    if(newHoverSquare !== this.hoverSquare) {
+Chessboard.prototype.updateHoverHighlighting = function (newHoverSquare = undefined) {
+    if (newHoverSquare !== this.hoverSquare) {
         let color;
-        if(this.hoverSquare === this.lastMovedFrom || this.hoverSquare === this.lastMovedTo) {
+        if (this.hoverSquare === this.lastMovedFrom || this.hoverSquare === this.lastMovedTo) {
             color = getMoveColor(this.hoverSquare);
         } else {
             color = getNormalColor(this.hoverSquare);
         }
         this.colorBoardSquare(this.hoverSquare, color);
 
-        if(newHoverSquare !== undefined) {
+        if (newHoverSquare !== undefined) {
             this.colorBoardSquare(newHoverSquare, getHoverColor(newHoverSquare));
         }
     }
@@ -359,23 +398,20 @@ Chessboard.prototype.makePromoDialog = function (isWhite) {
         this.engineAPI.PromotionChoices.BISHOP, this.engineAPI.PromotionChoices.KNIGHT];
     let promoDialog = document.createElement('div');
     promoDialog.className = 'chess-dialog promotion-dialog';
+    promoDialog.buttons = [];
 
-    let makePromoBtn = (num, svg) => {
+    let makePromoBtn = (code, svg) => {
         let btn = makeUndraggableCopy(svg);
+        btn.pieceCode = code;
         btn.className = 'piece-btn';
-        btn.onclick = () => {
-            promoDialog.style.visibility = 'hidden';
-            this.engineAPI.promote(num);
-            this.updatePieces();
-            this.enableMoves();
-        };
-
         return btn;
     };
 
     for (let i = 0; i < 4; i++) {
         const svg = svgs[Pieces[pcs[i]]];
-        promoDialog.appendChild(makePromoBtn(choices[i], svg));
+        const btn = makePromoBtn(choices[i], svg);
+        promoDialog.buttons.push(btn);
+        promoDialog.appendChild(btn);
     }
 
     promoDialog.reposition = (ratio = 1) => {
@@ -383,6 +419,17 @@ Chessboard.prototype.makePromoDialog = function (isWhite) {
         promoDialog.left = Math.floor(promoDialog.left * ratio);
         promoDialog.style.top = promoDialog.top + 'px';
         promoDialog.style.left = promoDialog.left + 'px';
+    };
+
+    promoDialog.registerButtonListener = (type) => {
+        for(let b of promoDialog.buttons) {
+            b.addEventListener(type, () => {
+                promoDialog.style.visibility = 'hidden';
+                this.engineAPI.promote(b.pieceCode);
+                this.updatePieces();
+                this.enableMoves();
+            }, false);
+        }
     };
 
     return promoDialog;
@@ -466,6 +513,15 @@ Chessboard.prototype.newGame = function (reverseBoard = false) {
     this.engineAPI.newGame();
     this.clearDialogs();
     this.updatePieces(true);
+
+    // Reset highlighting
+    this.colorBoardSquare(this.hoverSquare, getNormalColor(this.hoverSquare));
+    this.colorBoardSquare(this.lastMovedFrom, getNormalColor(this.lastMovedFrom));
+    this.colorBoardSquare(this.lastMovedTo, getNormalColor(this.lastMovedTo));
+
+    this.hoverSquare = undefined;
+    this.lastMovedFrom = undefined;
+    this.lastMovedTo = undefined;
 };
 
 loadSVGs();

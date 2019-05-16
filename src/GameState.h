@@ -1,10 +1,11 @@
 #ifndef CHESSAMATEUR3_GAMESTATE_H
 #define CHESSAMATEUR3_GAMESTATE_H
 
+#include <vector>
+#include <stdint.h>
 #include "piece.h"
 #include "Error.h"
 #include "Move.h"
-#include <vector>
 #include "logistics.h"
 
 class GameState {

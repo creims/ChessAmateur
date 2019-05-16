@@ -2,7 +2,6 @@
 #define CHESSAMATEUR3_GAME_H
 
 #include <string>
-#include <memory>
 #include "Error.h"
 #include "piece.h"
 #include "Move.h"

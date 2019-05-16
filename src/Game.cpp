@@ -320,7 +320,7 @@ string GameImpl::lastMoveString() {
         ret += "=" + pieceStr;
     }
 
-    // Check for checkmate/stalemate
+    // Check for checkmate/stalemate/check
     MoveResult result = checkGameOver();
     if(result == WHITE_WINS) {
         ret += "# 1-0";
