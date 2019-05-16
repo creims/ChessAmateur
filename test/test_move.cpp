@@ -2,7 +2,7 @@
 #include "../src/Move.h"
 
 TEST_CASE("Test isCapture") {
-    for(int t = MOVE; t != PROMOTION_KNIGHT_CAPTURE; t++) {
+    for(int t = MOVE; t <= PROMOTION_KNIGHT_CAPTURE; t++) {
         auto type = static_cast<MoveType>(t);
         Move m = {0, 0, type};
         switch(type) {

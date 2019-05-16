@@ -235,9 +235,9 @@ string GameImpl::lastMoveString() {
     Move m = moves.back();
 
     // Check for castling
-    if(m.type == CASTLE_KINGSIDE) {
+    if(m.type == CASTLE_EAST) {
         return "O-O";
-    } else if(m.type == CASTLE_QUEENSIDE) {
+    } else if(m.type == CASTLE_WEST) {
         return "O-O-O";
     }
 

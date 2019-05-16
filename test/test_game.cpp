@@ -797,5 +797,20 @@ TEST_CASE("Test valid moves", "") {
                                 "RNBQKBqR";
 
         REQUIRE(g.getBoard() == pawn_end);
+
+        // Cover a rare case of en passant to get out of check
+        const string epToDecheck = "rnbqkbnr"
+                                   "..ppp.pp"
+                                   ".p......"
+                                   "....P..."
+                                   "..K....."
+                                   "........"
+                                   ".PPP.P.."
+                                   "RNBQ.BqR";
+        g.setBoard(epToDecheck);
+
+        g.setActivePlayer(BLACK);
+        g.tryMove(11, 27);
+        REQUIRE_NOTHROW(g.tryMove(28, 19));
     }
 }

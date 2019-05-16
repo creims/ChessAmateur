@@ -147,12 +147,18 @@ namespace CA3 {
                verticalDistance(attackingSquare, defendingSquare) < 2;
     }
 
+    // Returns true if a pawn of attackerColor on attackingSquare can attack defendingSquare
     constexpr bool validPawnAttack(Square attackingSquare, Square defendingSquare, Color attackerColor) {
         if (attackerColor == WHITE) {
             return defendingSquare == attackingSquare - 7 || defendingSquare == attackingSquare - 9;
         } else {
             return defendingSquare == attackingSquare + 7 || defendingSquare == attackingSquare + 9;
         }
+    }
+
+    // Returns the square behind s, where behind is relative to a certain color (for en passant)
+    constexpr Square squareBehind(Square s, Color c) {
+        return c == WHITE ? s + 8 : s - 8;
     }
 
     // Returns the direction between two squares, or INVALID_DIR if it's none of N, E, S, W, NE, NW, SE, SW

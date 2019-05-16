@@ -221,8 +221,8 @@ TEST_CASE("Test isThreatenedBy", "") {
 
     SECTION("Knight threats") {
         // . . . . . . . .
-        // . k . . K . . .
-        // . . K . . k . .
+        // . n . . N . . .
+        // . . N . . n . .
         // . . . . . . . .
         // . . . . . . . .
         // . . . . . . . .
@@ -386,6 +386,8 @@ TEST_CASE("Test generateMoves", "") {
         // . . . . . . . .
         gs[0] = BLACK_KING;
         gs[4] = WHITE_KING;
+        gs.setBlackKingLocation(0);
+        gs.setWhiteKingLocation(4);
 
         gs.setToAct(WHITE);
         REQUIRE(gs.generateMoves().size() == 5);
@@ -411,6 +413,65 @@ TEST_CASE("Test generateMoves", "") {
     }
 
     SECTION("Generate castling moves") {
+        // r . . . k . . r
+        // p . . . . . . p
+        // . . . . . . . .
+        // . . . . . . . .
+        // . . . . . . . .
+        // . . . . . . . .
+        // P . . . . . . P
+        // R . . . K . . R
 
+        gs[0] = BLACK_ROOK;
+        gs[4] = BLACK_KING;
+        gs[7] = BLACK_ROOK;
+        gs[8] = BLACK_PAWN;
+        gs[15] = BLACK_PAWN;
+
+        gs[48] = WHITE_PAWN;
+        gs[55] = WHITE_PAWN;
+        gs[56] = WHITE_ROOK;
+        gs[60] = WHITE_KING;
+        gs[63] = WHITE_ROOK;
+
+        gs.setBlackKingLocation(4);
+        gs.setWhiteKingLocation(60);
+        gs.setBlackRookWestLocation(0);
+        gs.setBlackRookEastLocation(7);
+        gs.setWhiteRookWestLocation(56);
+        gs.setWhiteRookEastLocation(63);
+
+        // 4 pawn moves, 5 king moves, 5 rook moves, 2 castles = 16
+        REQUIRE(gs.generateMoves().size() == 16);
+
+        gs.makeMove({63, 62, MOVE});
+        REQUIRE(gs.generateMoves().size() == 15); // black cannot castle kingside through check
+
+        gs.makeMove({0, 2, MOVE});
+        REQUIRE(gs.generateMoves().size() == 21); // white can no longer castle, but has 7 more rook moves
+    }
+
+    SECTION("Generating promotions moves") {
+        // . r . . . . . .
+        // P . . . . . . .
+        // . . . . . . . .
+        // . . . . . . . .
+        // . . . . . . . .
+        // . . . . . . . .
+        // . p . . . . . .
+        // N K . . . . . .
+
+        gs[1] = BLACK_ROOK;
+        gs[8] = WHITE_PAWN;
+        gs[49] = BLACK_PAWN;
+        gs[56] = WHITE_KNIGHT;
+        gs[57] = WHITE_KING;
+
+        // 4 promo moves (Q, N), 2 knight moves, 2 king moves = 8
+        REQUIRE(gs.generateMoves().size() == 8);
+
+        gs.setToAct(BLACK);
+        // 12 rook moves, 2 promo moves = 14
+        REQUIRE(gs.generateMoves().size() == 14);
     }
 }

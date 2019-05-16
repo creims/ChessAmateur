@@ -40,7 +40,11 @@ public:
     // Mostly for testing
     void setToAct(CA3::Color _toAct) { toAct = _toAct; };
     void setWhiteKingLocation(CA3::Square location) { whiteKingSquare = location; };
+    void setWhiteRookEastLocation(CA3::Square location) { whiteRookEast = location; };
+    void setWhiteRookWestLocation(CA3::Square location) { whiteRookWest = location; };
     void setBlackKingLocation(CA3::Square location) { blackKingSquare = location; };
+    void setBlackRookEastLocation(CA3::Square location) { blackRookEast = location; };
+    void setBlackRookWestLocation(CA3::Square location) { blackRookWest = location; };
 
 private:
     CA3::Piece pieces[64];
@@ -51,7 +55,10 @@ private:
     CA3::Square nearestOccupiedInDir(CA3::Square from, CA3::Direction dir) const;
     bool isBlocked(CA3::Square from, CA3::Square to, CA3::Direction dir) const;
     bool isLosing(CA3::Square from, CA3::Square to);
-    CA3::Square canCastle(bool west);
+
+    enum CastleResult : uint8_t;
+    CastleResult canCastle(bool west);
+    void validateCastle(bool west);
 };
 
 #endif //CHESSAMATEUR3_GAMESTATE_H

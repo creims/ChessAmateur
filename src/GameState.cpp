@@ -5,10 +5,24 @@
 
 using namespace CA3;
 
+// Returns 1 if x > 0, -1 if x < 0, and 0 if x == 0
+constexpr int signOf(int x) {
+    return (x > 0) - (x < 0);
+}
+
+// Separate validation and castling checks so we can generate errors
+enum GameState::CastleResult : uint8_t {
+    CASTLE_SUCCESS, CASTLE_ERR_MOVED, CASTLE_ERR_BLOCKED, CASTLE_ERR_KING_CHECK, CASTLE_ERR_SQUARE_CHECK
+};
+
 void GameState::makeEmpty() {
     memset(pieces, NO_PIECE, 64);
     whiteKingSquare = INVALID_SQUARE;
+    whiteRookWest = INVALID_SQUARE;
+    whiteRookEast = INVALID_SQUARE;
     blackKingSquare = INVALID_SQUARE;
+    blackRookWest = INVALID_SQUARE;
+    blackRookEast = INVALID_SQUARE;
     toAct = WHITE;
 }
 
@@ -124,20 +138,15 @@ bool GameState::isThreatenedBy(const Square toCheck, const Color enemyColor) con
                 return true; // Bishop or queen is threatening
             }
 
+            // Kings can attack with range 1, and pawn attacks can attack in a subset of those situations
             if (inKingRange(toCheck, occupiedSquare)) {
                 if (isKing(nearPiece)) {
-                    return true; // Kings can attack
+                    return true;
                 }
 
-                if (isPawn(nearPiece)) {
-                    if (enemyColor == BLACK && (dir == NORTHEAST || dir == NORTHWEST)) {
-                        // Black pawns take to the south, so if you find an enemy pawn to the north it is attacking you
-                        return true;
-                    } else if (enemyColor == WHITE && (dir == SOUTHEAST || dir == SOUTHWEST)) {
-                        // White pawns take to the north, so if you find an enemy pawn to the south it is attacking you
-                        return true;
-                    }
-                } // End pawn check
+                if (isPawn(nearPiece) && validPawnAttack(occupiedSquare, toCheck, enemyColor)) {
+                    return true;
+                }
             } // End range 1 check
         }
     } // End diagonal check
@@ -214,9 +223,9 @@ struct Move GameState::validateMove(Square from, Square to) {
             case 9:
                 if (isEnPassant) {
                     moveType = EN_PASSANT;
-                }
+                } // FALL THROUGH FOR PROMOTION CHECK
             case 8: // Check if we need promotion
-                if (to < 8 || to > 55) {
+                if (onPromotionRow(to)) {
                     moveType = NEED_PROMOTE;
                 }
                 break;
@@ -226,7 +235,7 @@ struct Move GameState::validateMove(Square from, Square to) {
                 }
 
                 // Safe from out-of-bounds on legal boards because pawns MUST promote
-                Piece betweenHomeAndTarget = pieces[toAct == WHITE ? from - 8 : from + 8];
+                Piece betweenHomeAndTarget = pieces[squareBehind(to, toAct)];
                 if (betweenHomeAndTarget != NO_PIECE) {
                     throw Error("Invalid move: pawn cannot force march through another piece");
                 }
@@ -274,18 +283,20 @@ struct Move GameState::validateMove(Square from, Square to) {
         }
     } else if (movingPieceType == PIECE_KING) {
         bool valid = true;
-        if (horizontalDistance(from, to) > 1 || verticalDistance(from, to) > 1) {
+        if (!inKingRange(from, to)) {
             // Check for castling, the only case when kings can move > 1 square
             if (targetPiece == NO_PIECE || (isRook(targetPiece) && isFriendly(targetPiece, color))) {
                 Direction dir = getDirection(from, to);
 
                 // For castles, store rook in 'to' so we can move it easily regardless of Chess960
                 if (dir == WEST) {
-                    to = canCastle(true);
-                    moveType = CASTLE_QUEENSIDE;
+                    validateCastle(true);
+                    to = toAct == WHITE ? whiteRookWest : blackRookWest;
+                    moveType = CASTLE_WEST;
                 } else if (dir == EAST) {
-                    to = canCastle(false);
-                    moveType = CASTLE_KINGSIDE;
+                    validateCastle(false);
+                    to = toAct == WHITE ? whiteRookEast : blackRookEast;
+                    moveType = CASTLE_EAST;
                 } else {
                     valid = false;
                 }
@@ -299,32 +310,46 @@ struct Move GameState::validateMove(Square from, Square to) {
     }
 
     // Finally, it is illegal to put your own king in check
-    // canCastle ensures that castle moves aren't losing
-    if (moveType != CASTLE_KINGSIDE && moveType != CASTLE_QUEENSIDE && isLosing(from, to)) {
+    // validateCastle ensures that castle moves aren't losing (isLosing doesn't handle castle cases)
+    if (moveType != CASTLE_EAST && moveType != CASTLE_WEST && isLosing(from, to)) {
         throw Error("Invalid move: move would put your king in check");
     }
 
     return Move{from, to, moveType};
 }
 
-// Assumes otherwise valid from and to
-// Used in move validation and generation
+// Assumes otherwise valid from and to, and does NOT work in castle cases (validateCastle ensures the move isn't losing)
 bool GameState::isLosing(const Square from, const Square to) {
     bool isLosing = false;
+    bool isEnPassant = false;
 
     Piece moving = pieces[from];
     Piece target = pieces[to];
 
+    Square epPawnSquare = INVALID_SQUARE;
+    Piece epPiece = NO_PIECE;
+
     // Fake the move for a moment
+    // To do so, we must move the piece, deal with king locations, and remove captured pieces (including en passant)
     Square kingSquare;
     if (isKing(moving)) {
         kingSquare = to;
     } else {
         kingSquare = toAct == WHITE ? whiteKingSquare : blackKingSquare;
+
+        // The only time this can be true is during an en passant (en passant square guaranteed empty)
+        if(to == enPassantSquare && isPawn(moving)) {
+            isEnPassant = true;
+            epPawnSquare = squareBehind(to, toAct);
+            epPiece = pieces[epPawnSquare]; // The captured piece will be behind the moved piece
+        }
     }
 
     pieces[from] = NO_PIECE;
     pieces[to] = moving;
+    if(isEnPassant) {
+        pieces[epPawnSquare] = NO_PIECE;
+    }
 
     if (kingSquare != INVALID_SQUARE && isThreatenedBy(kingSquare, enemyColor(toAct))) {
         isLosing = true;
@@ -333,6 +358,9 @@ bool GameState::isLosing(const Square from, const Square to) {
     // Put the board back the way it was
     pieces[from] = moving;
     pieces[to] = target;
+    if(isEnPassant) {
+        pieces[epPawnSquare] = epPiece;
+    }
 
     return isLosing;
 }
@@ -381,10 +409,10 @@ void GameState::makeMove(Move m) {
     // updating king squares, and invalidating castling
     switch (m.type) {
         case FORCED_MARCH:
-            newEnPassantSquare = (Square) (toAct == WHITE ? from - 8 : from + 8);
+            newEnPassantSquare = squareBehind(to, toAct);
             break;
         case EN_PASSANT: {
-            auto capturedPawnSquare = (Square) (toAct == WHITE ? to + 8 : to - 8);
+            Square capturedPawnSquare = squareBehind(to, toAct);
             pieces[capturedPawnSquare] = NO_PIECE;
             break;
         }
@@ -404,7 +432,7 @@ void GameState::makeMove(Move m) {
         case PROMOTION_KNIGHT_CAPTURE:
             pieces[to] = toAct == WHITE ? WHITE_KNIGHT : BLACK_KNIGHT;
             break;
-        case CASTLE_KINGSIDE: // h-side or east
+        case CASTLE_EAST: // h-side or east
             pieces[to] = NO_PIECE;
             pieces[from] = NO_PIECE;
             if (toAct == WHITE) {
@@ -417,7 +445,7 @@ void GameState::makeMove(Move m) {
                 blackKingSquare = CASTLE_EAST_BLACK_KING;
             }
             break;
-        case CASTLE_QUEENSIDE: // a-side or west
+        case CASTLE_WEST: // a-side or west
             pieces[to] = NO_PIECE;
             pieces[from] = NO_PIECE;
             if (toAct == WHITE) {
@@ -482,7 +510,7 @@ std::vector<Move> GameState::generateMoves() {
                 // Check the take moves. Horizontal distance will != 1 if the move would wrap
                 if (isEnemy(pieces[takeW], toAct) && horizontalDistance(from, takeW) == 1 &&
                     !isLosing(from, takeW)) {
-                    if (onPromotionRow(move)) { // Add queen and knight promotions, as the rest are useless
+                    if (onPromotionRow(takeW)) { // Add queen and knight promotions, as the rest are useless
                         moves.emplace_back(from, takeW, PROMOTION_QUEEN_CAPTURE);
                         moves.emplace_back(from, takeW, PROMOTION_KNIGHT_CAPTURE);
                     } else {
@@ -492,7 +520,7 @@ std::vector<Move> GameState::generateMoves() {
 
                 if (isEnemy(pieces[takeE], toAct) && horizontalDistance(from, takeE) == 1 &&
                     !isLosing(from, takeE)) {
-                    if (onPromotionRow(move)) { // Add queen and knight promotions, as the rest are useless
+                    if (onPromotionRow(takeE)) { // Add queen and knight promotions, as the rest are useless
                         moves.emplace_back(from, takeE, PROMOTION_QUEEN_CAPTURE);
                         moves.emplace_back(from, takeE, PROMOTION_KNIGHT_CAPTURE);
                     } else {
@@ -502,7 +530,7 @@ std::vector<Move> GameState::generateMoves() {
                 break;
             } // END PAWN CASE
 
-                // Knights: examine squares from knight data
+            // Knights: examine squares from knight data
             case PIECE_KNIGHT: {
                 Square to;
                 for (Square const* p = knightPtr(from); (to = *p) != INVALID_SQUARE; ++p) {
@@ -545,7 +573,7 @@ std::vector<Move> GameState::generateMoves() {
                 break;
             } // END BISHOP CASE
 
-                // Rooks: loop through direction data from N to W
+            // Rooks: loop through direction data from N to W
             case PIECE_ROOK: {
                 for (int dir = RANKFILE_START; dir <= RANKFILE_END; ++dir) {
                     int inc = dirIncrement(dir);
@@ -595,7 +623,7 @@ std::vector<Move> GameState::generateMoves() {
                 break;
             } // END QUEEN CASE
 
-                // Kings: examine squares from king data
+                // Kings: examine squares from king data, then check castling
             case PIECE_KING: {
                 Square to;
                 for (Square const* p = kingPtr(from); (to = *p) != INVALID_SQUARE; ++p) {
@@ -608,6 +636,14 @@ std::vector<Move> GameState::generateMoves() {
                             moves.emplace_back(from, to, CAPTURE);
                         }
                     }
+                }
+
+                if(canCastle(true) == CASTLE_SUCCESS) {
+                    moves.emplace_back(from, blackRookWest, CASTLE_WEST);
+                }
+
+                if(canCastle(false) == CASTLE_SUCCESS) {
+                    moves.emplace_back(from, blackRookEast, CASTLE_EAST);
                 }
                 break;
             } // END KING CASE
@@ -627,12 +663,9 @@ bool GameState::currentPlayerInCheck() const {
     }
 }
 
-// Returns 1 if x > 0, -1 if x < 0, and 0 if x == 0
-constexpr int signOf(int x) {
-    return (x > 0) - (x < 0);
-}
 
-Square GameState::canCastle(bool west) {
+
+GameState::CastleResult GameState::canCastle(bool west) {
     Square kingSquare, rookSquare, targetSquare;
 
     if (toAct == WHITE) {
@@ -646,32 +679,46 @@ Square GameState::canCastle(bool west) {
     }
 
     if (rookSquare == INVALID_SQUARE) {
-        throw Error("Cannot castle: either the king or rook involved have moved");
+       return CASTLE_ERR_MOVED;
     }
 
     // There must be no pieces between the king and the rook square
     int rookInc = signOf(rookSquare - kingSquare);
     for (auto s = (Square) (rookInc + kingSquare); s != rookSquare; s += rookInc) {
         if (pieces[s] != NO_PIECE) {
-            throw Error("Cannot castle: piece in the way");
+            return CASTLE_ERR_BLOCKED;
         }
     }
 
     // The king cannot be in check or move through a square under threat
     Color enemy = enemyColor(toAct);
     if (isThreatenedBy(kingSquare, enemy)) {
-        throw Error("Cannot castle: king is in check");
+        return CASTLE_ERR_KING_CHECK;
     }
 
     int kingInc = signOf(targetSquare - kingSquare);
     do {
         kingSquare += kingInc;
         if (isThreatenedBy(kingSquare, enemy)) {
-            throw Error("Cannot castle: square between king and target square is threatened");
+            return CASTLE_ERR_SQUARE_CHECK;
         }
     } while (kingSquare != targetSquare);
 
-    return rookSquare;
+    return CASTLE_SUCCESS;
+}
+
+void GameState::validateCastle(bool west) {
+    switch(canCastle(west)) {
+        case CASTLE_SUCCESS:break;
+        case CASTLE_ERR_MOVED:
+            throw Error("Cannot castle: either the king or rook involved have moved");
+        case CASTLE_ERR_BLOCKED:
+            throw Error("Cannot castle: piece in the way");
+        case CASTLE_ERR_KING_CHECK:
+            throw Error("Cannot castle: king is in check");
+        case CASTLE_ERR_SQUARE_CHECK:
+            throw Error("Cannot castle: square between king and target square is threatened");
+    }
 }
 
 GameState::GameState()

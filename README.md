@@ -1,4 +1,4 @@
-#Chess Amateur
+# Chess Amateur
 [Online Version](https://creims.github.io/ChessAmateur/)
 
 A chess application written for learning purposes. Inspired (loosely) by the old ChessMaster software.
@@ -11,7 +11,7 @@ Learning Goals:
 - Practice OO design that involves juggling abstraction/maintainability and performance
 - Link a C++ interface to a responsive interactive website
 
-##Thoughts on Test Driven Development
+## Thoughts on Test Driven Development
 This has been my first foray into TDD, and it's been an enlightening experience.
 
 It was very difficult to follow the "tests before code" rule at first. Part of that was due to inexperience with the TDD paradigm, and part was due to preconceptions about design left over from my work on previous engines. By the time I was close to having a working engine, the tests were coming more easily: the designs were cleaner and I had an easier time separating (and testing) functionality.
@@ -20,7 +20,7 @@ Writing tests forces you to think things through from a client's viewpoint. If y
 
 The best part about TDD so far, though, has been the growing scaffold of unit tests. At any time, I can simply run the tests and know whether anything has broken. If it has, the tests usually tell me where to start looking. The time it took to write the tests was far, far outweighed by the time saved during refactors and the confidence it gives me to refactor in the first place. At this point, the tests feel more valuable than the actual implementations.
 
-##Other
+## Other
 Thanks to chess.com for informing my user interface.
 
 Some notes on using this code:
