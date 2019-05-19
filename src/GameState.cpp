@@ -200,10 +200,13 @@ struct Move GameState::validateMove(Square from, Square to) {
     if (movingPieceType == PIECE_PAWN) {
         // Check for board wrap and other overly lateral moves
         int hDist = horizontalDistance(from, to);
+        int vDist = verticalDistance(from, to);
         bool isEnPassant = to == enPassantSquare;
 
         int diff = from - to;
-        if (toAct == WHITE ? diff < 0 : diff > 0) {
+        if(vDist == 0) {
+            throw Error("Invalid move: pawns cannot move sideways");
+        } else if (toAct == WHITE ? diff < 0 : diff > 0) {
             throw Error("Invalid move: pawns cannot move backward");
         } else if (hDist == 0 && targetPiece != NO_PIECE) {
             throw Error("Invalid move: pawns cannot move forward onto other pieces");
@@ -388,15 +391,15 @@ void GameState::makeMove(Move m) {
     // If rook moves, invalidate its ability to castle
     if (isRook(toMove)) {
         if (toAct == WHITE) {
-            if (to == whiteRookWest) {
+            if (from == whiteRookWest) {
                 whiteRookWest = INVALID_SQUARE;
-            } else if (to == whiteRookEast) {
+            } else if (from == whiteRookEast) {
                 whiteRookEast = INVALID_SQUARE;
             }
         } else {
-            if (to == blackRookWest) {
+            if (from == blackRookWest) {
                 blackRookWest = INVALID_SQUARE;
-            } else if (to == whiteRookEast) {
+            } else if (from == blackRookEast) {
                 blackRookEast = INVALID_SQUARE;
             }
         }

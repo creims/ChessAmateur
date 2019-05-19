@@ -637,6 +637,32 @@ TEST_CASE("Test tryMove", "") {
             REQUIRE_NOTHROW(g.tryMove(4, 7)); // castle kingside
             REQUIRE(g.getBoard() == afterone);
         }
+
+        SECTION("Rooks moving from and then back to original should still invalidate castle") {
+            const string castleOK = "r . . . k . . r"
+                                    "p p p p p p p p"
+                                    ". . . . . . . ."
+                                    ". . . . . . . ."
+                                    ". . . . . . . ."
+                                    ". . . . . . . ."
+                                    "P P P P P P P P"
+                                    "R . . . K . . R";
+
+            g.setBoard(castleOK);
+            g.tryMove(63, 62);
+            g.setActivePlayer(WHITE);
+            g.tryMove(62, 63);
+            g.setActivePlayer(WHITE);
+            REQUIRE_THROWS(g.tryMove(60, 63));
+
+            g.setBoard(castleOK);
+            g.setActivePlayer(BLACK);
+            g.tryMove(7, 6);
+            g.setActivePlayer(BLACK);
+            g.tryMove(6, 7);
+            g.setActivePlayer(BLACK);
+            REQUIRE_THROWS(g.tryMove(4, 7));
+        }
     }
 
     SECTION("Valid castling moves work") {
