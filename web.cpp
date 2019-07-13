@@ -56,6 +56,7 @@ bool canMove(int square) {
 
 void promoteTo(PromotionChoice choice) {
     g.promote(choice);
+    logHandler(g.lastMoveString());
 }
 
 bool whiteToMove() {
